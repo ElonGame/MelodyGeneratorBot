@@ -14,6 +14,7 @@ namespace MelodyGeneratorBot
     {
         private BotApi _api;
         SimueCompiler _compiler = new SimueCompiler();
+        private int _maxSongLengthInMunites = 5;
 
         public MelodyGenerationBot(string apiToken)
         {
@@ -23,16 +24,16 @@ namespace MelodyGeneratorBot
 
         private void MelodyGenerationBot_MessageRecieved(Message message)
         {
+            if (message?.Text == null)
+                return;
             var result = _compiler.Parse(_compiler.Tokenize(message.Text.Trim(' ').ToLower()));
             if (result.Errors.Count == 0)
             {
-                var song = result.Song;
-                song.Name = message.Text;
-                int maxMin = 20;
-                if (song.Length > TimeSpan.FromMinutes(maxMin).TotalMilliseconds)
-                    _api.SendMessage(message.Chat, $"Ваша мелодия слишком длинная. Разрешена генерация мелодий не длиннее {maxMin} минут.").Wait();
+                result.Song.Name = message.Text;
+                if (result.Song.Length > TimeSpan.FromMinutes(_maxSongLengthInMunites).TotalMilliseconds)
+                    _api.SendMessage(message.Chat, $"Ваша мелодия слишком длинная. Разрешена генерация мелодий не длиннее {_maxSongLengthInMunites} минут.").Wait();
                 else
-                    SendSong(_api, message.Chat, song).Wait();
+                    SendSong(message.Chat, result.Song);
             }
             else
             {
@@ -41,33 +42,32 @@ namespace MelodyGeneratorBot
                                       string.Join($";{Environment.NewLine}",
                                           result.Errors.Select(token => $"• на позиции {token.Index}: <i>{token.Value}</i>")) + ".").Wait();
             }
-
         }
-        private async Task SendSong(BotApi botapi, Chat chat, Song song)
+        private void SendSong(Chat chat, Song song)
         {
             var generationTaskTask = Task.Run<byte[]>(() => GenerateMp3(song));
             do
             {
-                await botapi.SendChatAction(chat, "upload_audio");
+                _api.SendChatAction(chat, "upload_audio").Wait();
             } while (!generationTaskTask.Wait(4000));
             if (generationTaskTask.Result == null)
             {
-                await botapi.SendMessage(chat, $"Во время генерации аудиофайла произошла ошибка.");
+                _api.SendMessage(chat, $"Во время генерации аудиофайла произошла ошибка.").Wait();
                 return;
             }
             var stream = new MemoryStream(generationTaskTask.Result);
             var name = new string(song.Name.Take(100).ToArray());
             try
             {
-                await botapi.SendChatAction(chat, "upload_audio");
+                _api.SendChatAction(chat, "upload_audio").Wait();
                 var sendingTask = Task.Run<Message>(
-                    async () => await botapi.SendAudio(chat, stream, name + ".mp3", (int)(song.Length / 1000), name));
+                    async () => await _api.SendAudio(chat, stream, name + ".mp3", (int)(song.Length / 1000), name));
                 while (!sendingTask.Wait(4000))
-                    await botapi.SendChatAction(chat, "upload_audio");
+                    _api.SendChatAction(chat, "upload_audio").Wait();
             }
             catch
             {
-                await botapi.SendMessage(chat, $"Во время отправки аудиофайла произошла ошибка.");
+               _api.SendMessage(chat, $"Во время отправки аудиофайла произошла ошибка.").Wait();
             }
         }
         private byte[] GenerateMp3(Song song)
@@ -89,6 +89,8 @@ namespace MelodyGeneratorBot
                 wr.Flush();
                 var fileData = mp3File.ToArray();
                 mp3File.Dispose();
+                r.Dispose();
+                wr.Dispose();
                 return fileData;
             }
         }
