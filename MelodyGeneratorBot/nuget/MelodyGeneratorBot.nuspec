@@ -1,0 +1,23 @@
+﻿<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>MelodyGeneratorBot</id>
+    <version>1.0.0</version>
+    <authors>A. Handless</authors>
+    <owners>A. Handless</owners>
+    <description>A telegram bot that generates music written in Simue</description>
+    <copyright>Copyright ©2016—2017 A. Handless</copyright>
+    <tags>sound telegram-bot simue</tags>
+    <dependencies>
+      <dependency id="Newtonsoft.Json" version="[9.0,)"/>
+      <dependency id="WaveGenerator" version="[1.0,)" />
+      <dependency id="TelegramLibrary" version="[0.0.2,)" />
+      <dependency id="Simue" version="[1.0,)" />
+      <dependency id="NAudio" version="[1.8,)" />
+      <dependency id="NAudio.Lame" version="[1.0.4,)" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\bin\x64\Release\MelodyGeneratorBot.dll" target="lib\net452" />
+  </files>
+</package>
